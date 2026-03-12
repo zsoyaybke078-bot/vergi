@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Av. Aleyna Özsoy Vergi Hesaplayıcı</title>
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+margin:0;
+background:linear-gradient(135deg,#ff9bd4,#ffc8e8);
+min-height:100vh;
+}
+
+header{
+background:#ff2f8b;
+color:white;
+text-align:center;
+padding:15px;
+font-size:20px;
+font-weight:bold;
+}
+
+.container{
+padding:20px;
+max-width:500px;
+margin:auto;
+}
+
+button{
+width:100%;
+padding:12px;
+margin-top:10px;
+border:none;
+border-radius:10px;
+background:#ff2f8b;
+color:white;
+font-size:16px;
+cursor:pointer;
+transition:0.3s;
+}
+
+button:hover{
+transform:scale(1.05);
+background:#e60073;
+}
+
+input{
+width:100%;
+padding:10px;
+margin-top:8px;
+border-radius:8px;
+border:1px solid #ddd;
+font-size:15px;
+}
+
+.card{
+background:white;
+padding:12px;
+margin-top:10px;
+border-radius:10px;
+box-shadow:0 5px 15px rgba(0,0,0,0.15);
+cursor:pointer;
+transition:.3s;
+}
+
+.card:hover{
+transform:scale(1.03);
+}
+
+.homeBtn{
+background:#555;
+}
+
+.result{
+background:#fff;
+padding:15px;
+margin-top:15px;
+border-radius:10px;
+text-align:center;
+font-weight:bold;
+}
+
+.page{display:none}
+
+</style>
+</head>
+
+<body>
+
+<header>Av. Aleyna Özsoy Vergi Hesaplayıcı</header>
+
+<div class="container">
+
+<div id="home" class="page">
+<button onclick="openPage('add')">Vergi Ekle</button>
+<button onclick="openPage('list')">Vergi Hesapla</button>
+<button onclick="openPage('edit')">Vergi Düzenle / Sil</button>
+</div>
+
+<div id="add" class="page">
+<button class="homeBtn" onclick="openPage('home')">Ana Sayfa</button>
+<h3>Yeni Vergi</h3>
+<input id="taxName" placeholder="Vergi adı">
+<input id="taxRate" type="number" placeholder="Vergi oranı %">
+<button onclick="addTax()">Kaydet</button>
+</div>
+
+<div id="list" class="page">
+<button class="homeBtn" onclick="openPage('home')">Ana Sayfa</button>
+<div id="taxList"></div>
+<div class="result" id="result"></div>
+<button onclick="createPDF()">PDF Oluştur</button>
+</div>
+
+<div id="edit" class="page">
+<button class="homeBtn" onclick="openPage('home')">Ana Sayfa</button>
+<div id="editList"></div>
+</div>
+
+</div>
+
+<script>
+
+let taxes = JSON.parse(localStorage.getItem("taxes")) || [];
+let lastResult="";
+
+function save(){
+localStorage.setItem("taxes",JSON.stringify(taxes));
+}
+
+function openPage(id){
+
+document.querySelectorAll(".page").forEach(p=>p.style.display="none");
+
+document.getElementById(id).style.display="block";
+
+if(id==="list") renderList();
+if(id==="edit") renderEdit();
+
+}
+
+openPage("home");
+
+function addTax(){
+
+let name=document.getElementById("taxName").value;
+let rate=document.getElementById("taxRate").value;
+
+if(!name || !rate){
+alert("Bilgi gir");
+return;
+}
+
+taxes.push({name,rate});
+
+save();
+
+document.getElementById("taxName").value="";
+document.getElementById("taxRate").value="";
+
+alert("Kaydedildi");
+
+}
+
+function renderList(){
+
+let div=document.getElementById("taxList");
+
+div.innerHTML="";
+
+taxes.forEach(t=>{
+
+let card=document.createElement("div");
+
+card.className="card";
+
+card.innerHTML=`${t.name} (%${t.rate})`;
+
+card.onclick=()=>calculate(t);
+
+div.appendChild(card);
+
+});
+
+}
+
+function calculate(t){
+
+let amount=prompt("Tutar gir");
+
+if(!amount) return;
+
+let tax=amount*t.rate/100;
+
+let total=Number(amount)+tax;
+
+lastResult=
+`Vergi: ${t.name}
+Tutar: ${amount} TL
+Vergi: ${tax.toFixed(2)} TL
+Toplam: ${total.toFixed(2)} TL`;
+
+document.getElementById("result").innerHTML=
+lastResult.replace(/\n/g,"<br>");
+
+}
+
+function renderEdit(){
+
+let div=document.getElementById("editList");
+
+div.innerHTML="";
+
+taxes.forEach((t,i)=>{
+
+let card=document.createElement("div");
+
+card.className="card";
+
+card.innerHTML=
+`
+${t.name} (%${t.rate})
+<br>
+<button onclick="editTax(${i})">Düzenle</button>
+<button onclick="deleteTax(${i})">Sil</button>
+`;
+
+div.appendChild(card);
+
+});
+
+}
+
+function deleteTax(i){
+
+if(confirm("Silinsin mi?")){
+taxes.splice(i,1);
+save();
+renderEdit();
+}
+
+}
+
+function editTax(i){
+
+let name=prompt("Yeni isim",taxes[i].name);
+
+let rate=prompt("Yeni oran",taxes[i].rate);
+
+if(name && rate){
+
+taxes[i]={name,rate};
+
+save();
+
+renderEdit();
+
+}
+
+}
+
+function createPDF(){
+
+if(!lastResult){
+alert("Önce hesaplama yap");
+return;
+}
+
+const {jsPDF}=window.jspdf;
+
+let doc=new jsPDF();
+
+doc.text(lastResult,20,20);
+
+doc.save("vergi_hesaplama.pdf");
+
+}
+
+</script>
+
+</body>
+</html>
